@@ -93,6 +93,10 @@
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
     button:hover:not(:disabled) {
       background: #0369a1;
@@ -138,12 +142,38 @@
     textarea:focus {
       border-color: #38bdf8;
     }
+    .actions-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .download-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
     .btn-secondary {
       background: #334155;
       color: #f1f5f9;
     }
     .btn-secondary:hover:not(:disabled) {
       background: #475569;
+    }
+    .btn-export {
+      font-size: 0.84rem;
+      padding: 9px;
+    }
+    .btn-pdf {
+      background: #be123c;
+    }
+    .btn-pdf:hover:not(:disabled) {
+      background: #9f1239;
+    }
+    .btn-word {
+      background: #1d4ed8;
+    }
+    .btn-word:hover:not(:disabled) {
+      background: #1e40af;
     }
   </style>
 </head>
@@ -176,8 +206,15 @@
     <textarea id="resultText" placeholder="La transcripción aparecerá aquí..."></textarea>
   </div>
 
-  <button id="btnCopy" class="btn-secondary">Copiar Texto</button>
+  <div class="actions-group">
+    <button id="btnCopy" class="btn-secondary">📋 Copiar Texto</button>
+    <div class="download-row">
+      <button id="btnPdf" class="btn-export btn-pdf">📄 Exportar PDF</button>
+      <button id="btnWord" class="btn-export btn-word">📝 Exportar Word</button>
+    </div>
+  </div>
 
+  <script src="lib/jspdf.umd.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
