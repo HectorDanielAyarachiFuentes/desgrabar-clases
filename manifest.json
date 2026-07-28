@@ -5,12 +5,21 @@
   "description": "Transcribe archivos de audio y video largos usando la API de Deepgram.",
   "permissions": ["storage"],
   "host_permissions": ["https://api.deepgram.com/*"],
+  "icons": {
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
   "action": {
-    "default_title": "Desgrabador Deepgram"
+    "default_title": "Desgrabador Deepgram",
+    "default_icon": {
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
   },
   "sidebar_action": {
     "default_title": "Desgrabador Deepgram",
-    "default_panel": "popup.html"
+    "default_panel": "popup.html",
+    "default_icon": "icon-48.png"
   },
   "background": {
     "scripts": ["background.js"]
