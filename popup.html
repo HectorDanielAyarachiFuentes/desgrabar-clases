@@ -1,13 +1,183 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>
-body{width:340px;font-family:system-ui;padding:14px;margin:0;background:#0f172a;color:#f8fafc}
-h3{color:#38bdf8}input,textarea,button{width:100%;box-sizing:border-box;margin-top:6px}
-textarea{height:140px}
-</style></head><body>
-<h3>Desgrabador Deepgram</h3>
-<label>Deepgram API Key:</label><input id="apiKey" type="text">
-<label>Audio:</label><input id="audioFile" type="file" accept="audio/*">
-<button id="btnTranscribe">Transcribir Audio</button>
-<div id="status"></div>
-<textarea id="resultText"></textarea>
-<button id="btnCopy">Copiar Texto</button>
-<script src="popup.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desgrabador Deepgram</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 100%;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 16px;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .header {
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 10px;
+    }
+    h3 {
+      color: #38bdf8;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .subtitle {
+      font-size: 0.78rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #f8fafc;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus {
+      border-color: #38bdf8;
+    }
+    .file-input-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      background: #1e293b;
+      border: 1px dashed #475569;
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    input[type="file"]:hover {
+      border-color: #38bdf8;
+      background: #1e293b;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button:hover:not(:disabled) {
+      background: #0369a1;
+    }
+    button:active:not(:disabled) {
+      transform: scale(0.99);
+    }
+    button:disabled {
+      background: #334155;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+    .status-container {
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+    }
+    #status {
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #38bdf8;
+    }
+    #status.error {
+      color: #f87171;
+    }
+    #status.success {
+      color: #4ade80;
+    }
+    textarea {
+      width: 100%;
+      height: 180px;
+      padding: 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #f8fafc;
+      font-size: 0.85rem;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      line-height: 1.4;
+    }
+    textarea:focus {
+      border-color: #38bdf8;
+    }
+    .btn-secondary {
+      background: #334155;
+      color: #f1f5f9;
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h3>Desgrabador Deepgram</h3>
+    <div class="subtitle">Panel lateral Firefox</div>
+  </div>
+
+  <div class="field-group">
+    <label for="apiKey">Deepgram API Key:</label>
+    <input id="apiKey" type="text" placeholder="Ingresa tu API key de Deepgram">
+  </div>
+
+  <div class="field-group">
+    <label for="audioFile">Archivo de Audio o Video:</label>
+    <div class="file-input-wrapper">
+      <input id="audioFile" type="file" accept="audio/*,video/*,.mp3,.mp4,.wav,.m4a,.webm,.mkv,.flac,.ogg,.aac,.mov,.avi">
+    </div>
+  </div>
+
+  <button id="btnTranscribe">Transcribir Archivo</button>
+
+  <div class="status-container">
+    <div id="status"></div>
+  </div>
+
+  <div class="field-group">
+    <label for="resultText">Transcripción:</label>
+    <textarea id="resultText" placeholder="La transcripción aparecerá aquí..."></textarea>
+  </div>
+
+  <button id="btnCopy" class="btn-secondary">Copiar Texto</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>
