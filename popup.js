@@ -10,13 +10,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusDiv = document.getElementById('status');
   const resultTextArea = document.getElementById('resultText');
 
+  // Progress and Timer elements
+  const progressContainer = document.getElementById('progressContainer');
+  const progressStatus = document.getElementById('progressStatus');
+  const timerDisplay = document.getElementById('timerDisplay');
+  const progressBarFill = document.getElementById('progressBarFill');
+
+  let timerInterval = null;
+  let startTime = 0;
+
   // Load saved API Key
   if (extensionApi?.storage?.local) {
     extensionApi.storage.local.get(['deepgramKey']).then((x) => {
       if (x && x.deepgramKey) {
         apiKeyInput.value = x.deepgramKey;
       }
-    }).catch(err => console.error("Error loading key:", err));
+    }).catch(err => console.error("Error cargando key:", err));
   }
 
   // Save API Key on change/input
@@ -28,6 +37,107 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   apiKeyInput.addEventListener('change', saveKey);
   apiKeyInput.addEventListener('input', saveKey);
+
+  // Timer functions
+  function startTimer() {
+    stopTimer();
+    startTime = Date.now();
+    timerDisplay.textContent = '⏱️ 00:00';
+    timerInterval = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+      const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+      const secs = String(elapsedSeconds % 60).padStart(2, '0');
+      timerDisplay.textContent = `⏱️ ${mins}:${secs}`;
+    }, 500);
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    const totalMs = Date.now() - startTime;
+    const totalSecs = (totalMs / 1000).toFixed(1);
+    if (totalMs < 60000) {
+      return `${totalSecs} seg`;
+    } else {
+      const mins = Math.floor(totalMs / 60000);
+      const secs = ((totalMs % 60000) / 1000).toFixed(0);
+      return `${mins}m ${secs}s`;
+    }
+  }
+
+  // Smart Paragraph Formatter
+  function formatIntoParagraphs(rawText) {
+    if (!rawText) return '';
+    
+    // Check if rawText already contains double line breaks
+    if (rawText.includes('\n\n')) {
+      return rawText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean).join('\n\n');
+    }
+
+    // Check single newlines
+    if (rawText.includes('\n')) {
+      return rawText.split('\n').map(p => p.trim()).filter(Boolean).join('\n\n');
+    }
+
+    // Split continuous wall of text into sentences (. ! ?)
+    const sentenceRegex = /([^.!?]+[.!?]+(?:\s+|$))/g;
+    const sentences = rawText.match(sentenceRegex);
+
+    if (!sentences || sentences.length <= 1) {
+      return rawText;
+    }
+
+    const paragraphs = [];
+    let currentParagraph = [];
+
+    for (let i = 0; i < sentences.length; i++) {
+      const s = sentences[i].trim();
+      if (!s) continue;
+      currentParagraph.push(s);
+
+      // Create a paragraph every 3 to 4 sentences for optimal readability
+      if (currentParagraph.length >= 4 || i === sentences.length - 1) {
+        paragraphs.push(currentParagraph.join(' '));
+        currentParagraph = [];
+      }
+    }
+
+    return paragraphs.join('\n\n');
+  }
+
+  // Extract best formatted transcript from Deepgram response
+  function extractTranscript(data) {
+    const alt = data.results?.channels?.[0]?.alternatives?.[0];
+    if (!alt) return null;
+
+    // 1. Check structured paragraphs from Deepgram API
+    if (alt.paragraphs?.transcript && alt.paragraphs.transcript.trim()) {
+      return formatIntoParagraphs(alt.paragraphs.transcript);
+    }
+
+    // 2. Check paragraph array
+    if (alt.paragraphs?.paragraphs && Array.isArray(alt.paragraphs.paragraphs)) {
+      const paraTexts = alt.paragraphs.paragraphs.map(p => {
+        if (p.sentences) {
+          return p.sentences.map(s => s.text).join(' ');
+        }
+        return p.text || '';
+      }).filter(Boolean);
+
+      if (paraTexts.length > 0) {
+        return paraTexts.join('\n\n');
+      }
+    }
+
+    // 3. Fallback to general transcript with sentence-based formatting
+    if (alt.transcript) {
+      return formatIntoParagraphs(alt.transcript);
+    }
+
+    return null;
+  }
 
   // Transcribe button handler
   btnTranscribe.addEventListener('click', async () => {
@@ -47,36 +157,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnTranscribe.disabled = true;
-    setStatus('Procesando archivo... Por favor espera.', '');
+    setStatus('', '');
+    
+    // Show progress bar and start timer
+    progressContainer.classList.remove('hidden');
+    progressStatus.textContent = 'Enviando y procesando archivo...';
+    progressBarFill.className = 'progress-bar-fill indeterminate';
+    startTimer();
 
     try {
-      const response = await fetch(
-        'https://api.deepgram.com/v1/listen?model=nova-2&language=es&smart_format=true&punctuate=true',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Token ${key}`,
-            'Content-Type': file.type || 'application/octet-stream'
-          },
-          body: file
-        }
-      );
+      // Request Deepgram with paragraphs, smart_format, and punctuate
+      const apiUrl = 'https://api.deepgram.com/v1/listen?model=nova-2&language=es&smart_format=true&punctuate=true&paragraphs=true&diarize=true';
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${key}`,
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
+      });
 
       const data = await response.json();
+      const elapsedStr = stopTimer();
 
       if (response.ok) {
-        const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript;
-        if (transcript !== undefined) {
+        const transcript = extractTranscript(data);
+        if (transcript) {
           resultTextArea.value = transcript;
-          setStatus('¡Transcripción completada con éxito!', 'success');
+          progressBarFill.className = 'progress-bar-fill success';
+          progressStatus.textContent = `¡Completado en ${elapsedStr}!`;
+          setStatus('✨ Transcripción formateada y lista para descargar.', 'success');
         } else {
+          progressBarFill.className = 'progress-bar-fill error';
+          progressStatus.textContent = 'Error de respuesta';
           setStatus('La API no devolvió texto transcrito.', 'error');
         }
       } else {
+        progressBarFill.className = 'progress-bar-fill error';
+        progressStatus.textContent = 'Error API';
         const errMsg = data.err_msg || data.message || data.error || 'Error en la respuesta de la API';
         setStatus(`Error Deepgram: ${errMsg}`, 'error');
       }
     } catch (e) {
+      const elapsedStr = stopTimer();
+      progressBarFill.className = 'progress-bar-fill error';
+      progressStatus.textContent = 'Error de red';
       setStatus(`Error de red o procesamiento: ${e.message}`, 'error');
     } finally {
       btnTranscribe.disabled = false;
@@ -132,17 +258,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 15;
       const maxLineWidth = pageWidth - margin * 2;
-      const lineHeight = 7;
+      const lineHeight = 6.5;
       let cursorY = 20;
 
-      // Title
+      // Header Title
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(16);
       doc.setTextColor(2, 132, 199);
       doc.text('Transcripción de Audio / Video', margin, cursorY);
       cursorY += 7;
 
-      // Metadata / Date
+      // Metadata
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
@@ -156,18 +282,17 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.line(margin, cursorY, pageWidth - margin, cursorY);
       cursorY += 10;
 
-      // Content
+      // Content Body (Paragraph formatted)
       doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFontSize(10.5);
       doc.setTextColor(15, 23, 42);
 
-      const paragraphs = text.split('\n');
+      const paragraphs = text.split(/\n\s*\n/);
       for (const paragraph of paragraphs) {
-        if (!paragraph.trim()) {
-          cursorY += 4;
-          continue;
-        }
-        const lines = doc.splitTextToSize(paragraph, maxLineWidth);
+        const cleanParagraph = paragraph.trim();
+        if (!cleanParagraph) continue;
+
+        const lines = doc.splitTextToSize(cleanParagraph, maxLineWidth);
         for (const line of lines) {
           if (cursorY + lineHeight > pageHeight - margin) {
             doc.addPage();
@@ -176,11 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
           doc.text(line, margin, cursorY);
           cursorY += lineHeight;
         }
-        cursorY += 3;
+        cursorY += 4; // Space between paragraphs in PDF
       }
 
       doc.save(getExportFilename('pdf'));
-      setStatus('PDF descargado con éxito.', 'success');
+      setStatus('PDF descargado con éxito con formato de párrafos.', 'success');
     } catch (err) {
       console.error('Error exportando PDF:', err);
       setStatus(`Error exportando PDF: ${err.message}`, 'error');
@@ -207,8 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const dateStr = new Date().toLocaleString('es-ES');
 
       const paragraphsHtml = text
-        .split('\n')
-        .map(p => p.trim() ? `<p>${escapeHtml(p)}</p>` : '<p>&nbsp;</p>')
+        .split(/\n\s*\n/)
+        .map(p => p.trim() ? `<p style="margin-bottom: 14pt; text-align: justify; line-height: 1.6;">${escapeHtml(p)}</p>` : '')
+        .filter(Boolean)
         .join('');
 
       const docHtml = `<!DOCTYPE html>
@@ -219,10 +345,10 @@ document.addEventListener('DOMContentLoaded', () => {
   <meta charset='utf-8'>
   <title>Transcripción</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #0f172a; padding: 25px; }
+    body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #0f172a; padding: 25px; }
     h1 { color: #0284c7; font-size: 18pt; border-bottom: 2px solid #0284c7; padding-bottom: 6px; margin-bottom: 12px; }
     .meta { color: #64748b; font-size: 9.5pt; margin-bottom: 24px; }
-    p { margin-bottom: 10pt; text-align: justify; }
+    p { margin-bottom: 14pt; text-align: justify; }
   </style>
 </head>
 <body>
@@ -246,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setStatus('Documento Word descargado con éxito.', 'success');
+      setStatus('Documento Word descargado con éxito con formato de párrafos.', 'success');
     } catch (err) {
       console.error('Error exportando Word:', err);
       setStatus(`Error exportando Word: ${err.message}`, 'error');

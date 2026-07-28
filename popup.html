@@ -109,8 +109,75 @@
       color: #64748b;
       cursor: not-allowed;
     }
+
+    /* Progress bar and timer styles */
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: #1e293b;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      transition: opacity 0.3s;
+    }
+    .progress-container.hidden {
+      display: none;
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    #progressStatus {
+      color: #38bdf8;
+    }
+    #timerDisplay {
+      color: #f59e0b;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+    .progress-bar-track {
+      width: 100%;
+      height: 8px;
+      background: #0f172a;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #38bdf8, #0284c7);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+    .progress-bar-fill.indeterminate {
+      width: 40%;
+      position: absolute;
+      animation: pulseMove 1.5s infinite ease-in-out;
+    }
+    .progress-bar-fill.success {
+      width: 100% !important;
+      background: #4ade80 !important;
+      position: static;
+    }
+    .progress-bar-fill.error {
+      width: 100% !important;
+      background: #f87171 !important;
+      position: static;
+    }
+
+    @keyframes pulseMove {
+      0% { left: 0%; width: 20%; }
+      50% { left: 50%; width: 40%; }
+      100% { left: 80%; width: 20%; }
+    }
+
     .status-container {
-      min-height: 24px;
+      min-height: 20px;
       display: flex;
       align-items: center;
     }
@@ -125,10 +192,11 @@
     #status.success {
       color: #4ade80;
     }
+
     textarea {
       width: 100%;
-      height: 180px;
-      padding: 10px;
+      height: 200px;
+      padding: 10px 12px;
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 6px;
@@ -137,11 +205,13 @@
       font-family: inherit;
       resize: vertical;
       outline: none;
-      line-height: 1.4;
+      line-height: 1.6;
+      white-space: pre-wrap;
     }
     textarea:focus {
       border-color: #38bdf8;
     }
+
     .actions-group {
       display: flex;
       flex-direction: column;
@@ -197,13 +267,24 @@
 
   <button id="btnTranscribe">Transcribir Archivo</button>
 
+  <!-- Progress Bar and Timer Section -->
+  <div id="progressContainer" class="progress-container hidden">
+    <div class="progress-header">
+      <span id="progressStatus">Procesando...</span>
+      <span id="timerDisplay">⏱️ 00:00</span>
+    </div>
+    <div class="progress-bar-track">
+      <div id="progressBarFill" class="progress-bar-fill"></div>
+    </div>
+  </div>
+
   <div class="status-container">
     <div id="status"></div>
   </div>
 
   <div class="field-group">
-    <label for="resultText">Transcripción:</label>
-    <textarea id="resultText" placeholder="La transcripción aparecerá aquí..."></textarea>
+    <label for="resultText">Transcripción Formateada:</label>
+    <textarea id="resultText" placeholder="La transcripción aparecerá aquí dividida en párrafos legibles..."></textarea>
   </div>
 
   <div class="actions-group">
