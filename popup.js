@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const apiKeyInput = document.getElementById('apiKey');
   const fileInput = document.getElementById('audioFile');
+  const docTitleInput = document.getElementById('docTitle');
   const btnTranscribe = document.getElementById('btnTranscribe');
   const btnCopy = document.getElementById('btnCopy');
   const btnPdf = document.getElementById('btnPdf');
@@ -38,6 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
   apiKeyInput.addEventListener('change', saveKey);
   apiKeyInput.addEventListener('input', saveKey);
 
+  // Auto-set title from file name when file is selected
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (file && file.name) {
+      const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+      const cleanTitle = baseName.replace(/[-_]/g, ' ').trim();
+      if (!docTitleInput.value || docTitleInput.value === 'Transcripción de Audio / Video') {
+        docTitleInput.value = cleanTitle;
+      }
+    }
+  });
+
   // Timer functions
   function startTimer() {
     stopTimer();
@@ -71,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function formatIntoParagraphs(rawText) {
     if (!rawText) return '';
     
-    // Check if rawText already contains double line breaks
+    // Check double newlines
     if (rawText.includes('\n\n')) {
       return rawText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean).join('\n\n');
     }
@@ -97,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!s) continue;
       currentParagraph.push(s);
 
-      // Create a paragraph every 3 to 4 sentences for optimal readability
+      // Create a paragraph every 3 to 4 sentences
       if (currentParagraph.length >= 4 || i === sentences.length - 1) {
         paragraphs.push(currentParagraph.join(' '));
         currentParagraph = [];
@@ -107,17 +120,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return paragraphs.join('\n\n');
   }
 
-  // Extract best formatted transcript from Deepgram response
+  // Extract transcript from Deepgram response
   function extractTranscript(data) {
     const alt = data.results?.channels?.[0]?.alternatives?.[0];
     if (!alt) return null;
 
-    // 1. Check structured paragraphs from Deepgram API
     if (alt.paragraphs?.transcript && alt.paragraphs.transcript.trim()) {
       return formatIntoParagraphs(alt.paragraphs.transcript);
     }
 
-    // 2. Check paragraph array
     if (alt.paragraphs?.paragraphs && Array.isArray(alt.paragraphs.paragraphs)) {
       const paraTexts = alt.paragraphs.paragraphs.map(p => {
         if (p.sentences) {
@@ -131,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // 3. Fallback to general transcript with sentence-based formatting
     if (alt.transcript) {
       return formatIntoParagraphs(alt.transcript);
     }
@@ -166,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
     startTimer();
 
     try {
-      // Request Deepgram with paragraphs, smart_format, and punctuate
       const apiUrl = 'https://api.deepgram.com/v1/listen?model=nova-2&language=es&smart_format=true&punctuate=true&paragraphs=true&diarize=true';
       
       const response = await fetch(apiUrl, {
@@ -228,15 +237,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Helper for export filename
+  // Helper for export filename using custom or default title
   function getExportFilename(extension) {
-    const file = fileInput.files[0];
-    if (file && file.name) {
-      const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-      return `transcripcion_${baseName}.${extension}`;
-    }
-    const dateStr = new Date().toISOString().slice(0, 10);
-    return `transcripcion_${dateStr}.${extension}`;
+    const rawTitle = docTitleInput.value.trim() || 'Transcripcion';
+    const sanitizedTitle = rawTitle.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s_-]/g, '').trim().replace(/\s+/g, '_');
+    return `${sanitizedTitle || 'transcripcion'}.${extension}`;
+  }
+
+  // Get active title string for document header
+  function getDocumentTitle() {
+    return docTitleInput.value.trim() || 'Transcripción de Audio / Video';
   }
 
   // PDF Export handler
@@ -261,12 +271,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const lineHeight = 6.5;
       let cursorY = 20;
 
-      // Header Title
+      // Custom Title Header
+      const headerTitle = getDocumentTitle();
       doc.setFont('Helvetica', 'bold');
       doc.setFontSize(16);
       doc.setTextColor(2, 132, 199);
-      doc.text('Transcripción de Audio / Video', margin, cursorY);
-      cursorY += 7;
+      
+      const titleLines = doc.splitTextToSize(headerTitle, maxLineWidth);
+      for (const line of titleLines) {
+        doc.text(line, margin, cursorY);
+        cursorY += 7;
+      }
 
       // Metadata
       doc.setFont('Helvetica', 'normal');
@@ -282,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.line(margin, cursorY, pageWidth - margin, cursorY);
       cursorY += 10;
 
-      // Content Body (Paragraph formatted)
+      // Content Body
       doc.setFont('Helvetica', 'normal');
       doc.setFontSize(10.5);
       doc.setTextColor(15, 23, 42);
@@ -301,11 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
           doc.text(line, margin, cursorY);
           cursorY += lineHeight;
         }
-        cursorY += 4; // Space between paragraphs in PDF
+        cursorY += 4;
       }
 
       doc.save(getExportFilename('pdf'));
-      setStatus('PDF descargado con éxito con formato de párrafos.', 'success');
+      setStatus('PDF descargado con título personalizado.', 'success');
     } catch (err) {
       console.error('Error exportando PDF:', err);
       setStatus(`Error exportando PDF: ${err.message}`, 'error');
@@ -328,7 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
            .replace(/"/g, '&quot;')
            .replace(/'/g, '&#039;');
 
-      const fileInfoStr = fileInput.files[0]?.name ? `<div><strong>Archivo:</strong> ${escapeHtml(fileInput.files[0].name)}</div>` : '';
+      const headerTitle = getDocumentTitle();
+      const fileInfoStr = fileInput.files[0]?.name ? `<div><strong>Archivo original:</strong> ${escapeHtml(fileInput.files[0].name)}</div>` : '';
       const dateStr = new Date().toLocaleString('es-ES');
 
       const paragraphsHtml = text
@@ -343,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
       xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
   <meta charset='utf-8'>
-  <title>Transcripción</title>
+  <title>${escapeHtml(headerTitle)}</title>
   <style>
     body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #0f172a; padding: 25px; }
     h1 { color: #0284c7; font-size: 18pt; border-bottom: 2px solid #0284c7; padding-bottom: 6px; margin-bottom: 12px; }
@@ -352,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </style>
 </head>
 <body>
-  <h1>Transcripción de Audio / Video</h1>
+  <h1>${escapeHtml(headerTitle)}</h1>
   <div class="meta">
     ${fileInfoStr}
     <div><strong>Fecha de exportación:</strong> ${dateStr}</div>
@@ -372,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      setStatus('Documento Word descargado con éxito con formato de párrafos.', 'success');
+      setStatus('Documento Word descargado con título personalizado.', 'success');
     } catch (err) {
       console.error('Error exportando Word:', err);
       setStatus(`Error exportando Word: ${err.message}`, 'error');
