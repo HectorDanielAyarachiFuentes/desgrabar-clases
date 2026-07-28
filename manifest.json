@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Desgrabador Deepgram",
+  "version": "1.0",
+  "description": "Transcribe archivos de audio largos usando la API de Deepgram.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.deepgram.com/*"],
+  "action": {"default_popup":"popup.html"},
+  "browser_specific_settings":{"gecko":{"id":"desgrabador-audio@local"}}
+}

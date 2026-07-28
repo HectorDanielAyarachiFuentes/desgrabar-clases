@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>
+body{width:340px;font-family:system-ui;padding:14px;margin:0;background:#0f172a;color:#f8fafc}
+h3{color:#38bdf8}input,textarea,button{width:100%;box-sizing:border-box;margin-top:6px}
+textarea{height:140px}
+</style></head><body>
+<h3>Desgrabador Deepgram</h3>
+<label>Deepgram API Key:</label><input id="apiKey" type="text">
+<label>Audio:</label><input id="audioFile" type="file" accept="audio/*">
+<button id="btnTranscribe">Transcribir Audio</button>
+<div id="status"></div>
+<textarea id="resultText"></textarea>
+<button id="btnCopy">Copiar Texto</button>
+<script src="popup.js"></script></body></html>
